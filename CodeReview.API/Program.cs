@@ -1,5 +1,7 @@
 using CodeReview.API.Middleware;
 using CodeReview.API.Services;
+using CodeReview.API.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,8 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // CORS — allows the React app (localhost:5173) to call this API
 builder.Services.AddCors(options =>
