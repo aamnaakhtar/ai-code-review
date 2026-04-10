@@ -1,19 +1,33 @@
+using CodeReview.API.Configuration;
+using CodeReview.API.Data;
 using CodeReview.API.Middleware;
 using CodeReview.API.Services;
-using CodeReview.API.Data;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Bind LLM config section to typed options class
+builder.Services.Configure<LLMOptions>(
+    builder.Configuration.GetSection("LLM"));
+
+// Register HttpClient for Gemini calls
+builder.Services.AddHttpClient<GeminiLLMService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
 // Register services
-builder.Services.AddControllers();
+builder.Services.AddScoped<ILLMService, GeminiLLMService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+
+// Register DbContext
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration
+        .GetConnectionString("DefaultConnection")));
+
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// CORS — allows the React app (localhost:5173) to call this API
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
@@ -26,7 +40,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Middleware pipeline — order matters
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())

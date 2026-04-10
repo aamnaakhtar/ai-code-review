@@ -30,11 +30,11 @@ public class AppDbContext : DbContext
             entity.HasKey(j => j.Id);
             entity.Property(j => j.Status).HasDefaultValue("pending");
 
-            // One user has many jobs
             entity.HasOne(j => j.User)
-                  .WithMany(u => u.ReviewJobs)
-                  .HasForeignKey(j => j.UserId)
-                  .OnDelete(DeleteBehavior.Cascade); // delete user = delete their jobs
+                .WithMany(u => u.ReviewJobs)
+                .HasForeignKey(j => j.UserId)
+                .IsRequired(false)  // allows null UserId
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ReviewResults table

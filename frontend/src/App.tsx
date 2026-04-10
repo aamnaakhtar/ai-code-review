@@ -3,6 +3,7 @@ import CodeEditor from "./components/CodeEditor";
 import ReviewPanel from "./components/ReviewPanel";
 import LanguageSelector from "./components/LanguageSelector";
 import { type Language, type ReviewResult } from "./types/review";
+import { submitReview } from "./api/reviewApi";
 
 const PLACEHOLDER = `// Paste your code here
 function calculateTotal(items) {
@@ -24,40 +25,14 @@ export default function App() {
     setLoading(true);
     setError(null);
 
-    // Day 4 — this will call the real C# backend
-    // For now, we mock the response so the UI works end-to-end
-    await new Promise((r) => setTimeout(r, 1500));
-    setResult({
-      id: "mock-001",
-      status: "done",
-      summary:
-        "Found 3 issues in your code — 1 bug, 1 performance note, 1 style suggestion.",
-      reviewedAt: new Date().toISOString(),
-      issues: [
-        {
-          type: "bug",
-          severity: "high",
-          line: 4,
-          message:
-            "Off-by-one error: loop runs i <= items.length, accessing items[items.length] which is undefined.",
-          suggestion: "Change condition to i < items.length",
-        },
-        {
-          type: "performance",
-          severity: "medium",
-          message:
-            "Array iteration using index-based loop is fine here, but Array.reduce() is more idiomatic and avoids mutation.",
-          suggestion: "Use items.reduce((sum, item) => sum + item.price, 0)",
-        },
-        {
-          type: "style",
-          severity: "low",
-          message: "Function lacks a type annotation for the items parameter.",
-          suggestion: "Add JSDoc or convert to TypeScript with Item[] type",
-        },
-      ],
-    });
-    setLoading(false);
+    try {
+      const result = await submitReview(code, language);
+      setResult(result);
+    } catch (err) {
+      setError("Review failed. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

@@ -1,39 +1,86 @@
+using CodeReview.API.Data;
 using CodeReview.API.DTOs;
+using CodeReview.API.Models.Entities;
 
 namespace CodeReview.API.Services;
 
 public class ReviewService : IReviewService
 {
+    private readonly ILLMService _llmService;
+    private readonly AppDbContext _db;
+    private readonly ILogger<ReviewService> _logger;
+
+    public ReviewService(
+        ILLMService llmService,
+        AppDbContext db,
+        ILogger<ReviewService> logger)
+    {
+        _llmService = llmService;
+        _db = db;
+        _logger = logger;
+    }
+
     public async Task<ReviewResultDto> ReviewCodeAsync(ReviewRequestDto request)
     {
-        // Day 4 — this will call the real LLM API
-        // For now we return a mock so the controller works end-to-end
-        await Task.Delay(500); // simulates async work
-
-        return new ReviewResultDto
+        // Save job to DB first
+        var job = new ReviewJob
         {
-            Id = Guid.NewGuid().ToString(),
-            Status = "done",
-            Summary = $"Reviewed {request.Language} code. Found 2 issues.",
-            ReviewedAt = DateTime.UtcNow.ToString("o"),
-            Issues = new List<ReviewIssueDto>
-            {
-                new ReviewIssueDto
-                {
-                    Type = "bug",
-                    Severity = "high",
-                    Line = 4,
-                    Message = "Off-by-one error in loop condition.",
-                    Suggestion = "Change i <= items.length to i < items.length"
-                },
-                new ReviewIssueDto
-                {
-                    Type = "style",
-                    Severity = "low",
-                    Message = "Missing type annotations.",
-                    Suggestion = "Add explicit types to function parameters"
-                }
-            }
+            Code = request.Code,
+            Language = request.Language,
+            Status = "processing"
         };
+        _db.ReviewJobs.Add(job);
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            // Call LLM
+            var llmResponse = await _llmService.ReviewCodeAsync(
+                request.Code,
+                request.Language);
+
+            // Save result to DB
+            var result = new ReviewResult
+            {
+                JobId = job.Id,
+                Summary = llmResponse.Summary,
+                TotalIssues = llmResponse.Issues.Count,
+                Issues = llmResponse.Issues.Select(i => new ReviewIssue
+                {
+                    Type = i.Type,
+                    Severity = i.Severity,
+                    Line = i.Line,
+                    Message = i.Message,
+                    Suggestion = i.Suggestion
+                }).ToList()
+            };
+
+            _db.ReviewResults.Add(result);
+            job.Status = "done";
+            await _db.SaveChangesAsync();
+
+            return new ReviewResultDto
+            {
+                Id = result.Id.ToString(),
+                Status = "done",
+                Summary = result.Summary,
+                ReviewedAt = result.ReviewedAt.ToString("o"),
+                Issues = result.Issues.Select(i => new ReviewIssueDto
+                {
+                    Type = i.Type,
+                    Severity = i.Severity,
+                    Line = i.Line,
+                    Message = i.Message,
+                    Suggestion = i.Suggestion
+                }).ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            job.Status = "error";
+            await _db.SaveChangesAsync();
+            _logger.LogError(ex, "LLM review failed for job {JobId}", job.Id);
+            throw;
+        }
     }
 }
