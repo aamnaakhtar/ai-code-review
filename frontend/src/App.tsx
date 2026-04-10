@@ -3,16 +3,9 @@ import CodeEditor from "./components/CodeEditor";
 import ReviewPanel from "./components/ReviewPanel";
 import LanguageSelector from "./components/LanguageSelector";
 import { type Language, type ReviewResult } from "./types/review";
-import { submitReview } from "./api/reviewApi";
+import { submitReview, getReviewResult } from "./api/reviewApi";
 
-const PLACEHOLDER = `// Paste your code here
-function calculateTotal(items) {
-  let total = 0;
-  for (let i = 0; i <= items.length; i++) {  // bug: off-by-one
-    total += items[i].price;
-  }
-  return total;
-}`;
+const PLACEHOLDER = "// Paste your code here\n";
 
 export default function App() {
   const [code, setCode] = useState(PLACEHOLDER);
@@ -24,17 +17,32 @@ export default function App() {
   async function handleReview() {
     setLoading(true);
     setError(null);
+    setResult(null);
 
     try {
-      const result = await submitReview(code, language);
-      setResult(result);
+      // Step 1 — submit and get jobId back instantly
+      const jobId = await submitReview(code, language);
+
+      // Step 2 — poll every 2 seconds until done
+      const poll = async (): Promise<void> => {
+        const data = await getReviewResult(jobId);
+
+        if (data.status === "done" || data.status === "error") {
+          setResult(data);
+          setLoading(false);
+          return;
+        }
+
+        // Still pending/processing — poll again after 2s
+        setTimeout(poll, 2000);
+      };
+
+      await poll();
     } catch (err) {
       setError("Review failed. Is the backend running?");
-    } finally {
       setLoading(false);
     }
   }
-
   return (
     <div className="h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}

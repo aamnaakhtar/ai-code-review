@@ -17,7 +17,6 @@ builder.Services.AddHttpClient<GeminiLLMService>(client =>
 });
 // Register services
 builder.Services.AddScoped<ILLMService, GeminiLLMService>();
-builder.Services.AddScoped<IReviewService, ReviewService>();
 
 // Register DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -37,6 +36,12 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+// Queue — singleton because it lives for entire app lifetime
+builder.Services.AddSingleton<ReviewQueue>();
+
+// Background worker — automatically started by .NET
+builder.Services.AddHostedService<ReviewWorker>();
 
 var app = builder.Build();
 
