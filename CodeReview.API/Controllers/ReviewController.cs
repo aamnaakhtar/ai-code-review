@@ -14,18 +14,28 @@ public class ReviewController : ControllerBase
     private readonly ReviewQueue _queue;
     private readonly AppDbContext _db;
     private readonly ILogger<ReviewController> _logger;
+    private readonly ReviewCacheService _cache;
 
     public ReviewController(
         ReviewQueue queue,
         AppDbContext db,
+        ReviewCacheService cache,
         ILogger<ReviewController> logger)
     {
         _queue = queue;
         _db = db;
+        _cache = cache;
         _logger = logger;
     }
 
-    // POST api/review — submit a job, returns jobId instantly
+    // Add this endpoint
+    [HttpGet("cache/stats")]
+    public IActionResult GetCacheStats()
+    {
+        var stats = _cache.GetStats();
+        return Ok(stats);
+    }    // POST api/review — submit a job, returns jobId instantly
+
     [HttpPost]
     public async Task<ActionResult<SubmitReviewResponseDto>> SubmitReview(
         [FromBody] ReviewRequestDto request)

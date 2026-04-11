@@ -1,3 +1,4 @@
+using AspNetCoreRateLimit;
 using CodeReview.API.Configuration;
 using CodeReview.API.Data;
 using CodeReview.API.Middleware;
@@ -6,19 +7,33 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind LLM config section to typed options class
+// Rate limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(
+    builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
+
+// Cache — singleton because it lives for entire app lifetime
+builder.Services.AddSingleton<ReviewCacheService>();
+
+// Queue and worker
+builder.Services.AddSingleton<ReviewQueue>();
+builder.Services.AddHostedService<ReviewWorker>();
+
+// LLM config
 builder.Services.Configure<LLMOptions>(
     builder.Configuration.GetSection("LLM"));
-
-// Register HttpClient for Gemini calls
 builder.Services.AddHttpClient<GeminiLLMService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(120);
 });
-// Register services
 builder.Services.AddScoped<ILLMService, GeminiLLMService>();
 
-// Register DbContext
+// Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration
         .GetConnectionString("DefaultConnection")));
@@ -37,15 +52,10 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Queue — singleton because it lives for entire app lifetime
-builder.Services.AddSingleton<ReviewQueue>();
-
-// Background worker — automatically started by .NET
-builder.Services.AddHostedService<ReviewWorker>();
-
 var app = builder.Build();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
+app.UseIpRateLimiting();
 
 if (app.Environment.IsDevelopment())
 {

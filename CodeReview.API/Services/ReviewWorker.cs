@@ -8,15 +8,18 @@ public class ReviewWorker : BackgroundService
 {
     private readonly ReviewQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ReviewCacheService _cache;
     private readonly ILogger<ReviewWorker> _logger;
 
     public ReviewWorker(
         ReviewQueue queue,
         IServiceScopeFactory scopeFactory,
+        ReviewCacheService cache,
         ILogger<ReviewWorker> logger)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -24,7 +27,6 @@ public class ReviewWorker : BackgroundService
     {
         _logger.LogInformation("Review worker started");
 
-        // Keep reading from the queue until the app shuts down
         await foreach (var job in _queue.Reader.ReadAllAsync(stoppingToken))
         {
             await ProcessJobAsync(job, stoppingToken);
@@ -33,30 +35,39 @@ public class ReviewWorker : BackgroundService
 
     private async Task ProcessJobAsync(ReviewJob job, CancellationToken ct)
     {
-        _logger.LogInformation("Processing job {JobId} for {Language}",
-            job.Id, job.Language);
+        _logger.LogInformation("Processing job {JobId}", job.Id);
 
-        // Background services are singletons but DbContext is scoped
-        // So we must create a new scope to get a fresh DbContext
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var llm = scope.ServiceProvider.GetRequiredService<ILLMService>();
 
         try
         {
-            // Mark as processing
             job.Status = "processing";
             db.ReviewJobs.Update(job);
             await db.SaveChangesAsync(ct);
 
-            // Call the LLM
-            var llmResponse = await llm.ReviewCodeAsync(job.Code, job.Language);
+            // Step 1 — check cache BEFORE calling LLM
+            var cacheKey = _cache.GenerateCacheKey(job.Code, job.Language);
+            if (!_cache.TryGet(cacheKey, out var llmResponse))
+            {
+                // Cache miss — call the real LLM
+                _logger.LogInformation("Cache MISS — calling Gemini for job {JobId}", job.Id);
+                llmResponse = await llm.ReviewCodeAsync(job.Code, job.Language);
 
-            // Save result
+                // Store in cache for future identical submissions
+                _cache.Set(cacheKey, llmResponse!);
+            }
+            else
+            {
+                _logger.LogInformation("Cache HIT — skipping Gemini for job {JobId}", job.Id);
+            }
+
+            // Save result to DB regardless of cache hit/miss
             var result = new ReviewResult
             {
                 JobId = job.Id,
-                Summary = llmResponse.Summary,
+                Summary = llmResponse!.Summary,
                 TotalIssues = llmResponse.Issues.Count,
                 Issues = llmResponse.Issues.Select(i => new ReviewIssue
                 {
@@ -72,17 +83,13 @@ public class ReviewWorker : BackgroundService
             job.Status = "done";
             db.ReviewJobs.Update(job);
             await db.SaveChangesAsync(ct);
-
-            _logger.LogInformation("Job {JobId} completed successfully", job.Id);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Job {JobId} failed", job.Id);
 
-            // Use a fresh scope since the previous one may be corrupted
             using var errorScope = _scopeFactory.CreateScope();
             var errorDb = errorScope.ServiceProvider.GetRequiredService<AppDbContext>();
-
             var failedJob = await errorDb.ReviewJobs.FindAsync(job.Id);
             if (failedJob != null)
             {
