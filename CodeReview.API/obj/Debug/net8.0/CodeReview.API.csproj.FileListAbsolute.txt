@@ -106,3 +106,12 @@ E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\ru\Microsoft.CodeAnalysis.Work
 E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\tr\Microsoft.CodeAnalysis.Workspaces.resources.dll
 E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.resources.dll
 E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.resources.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\BCrypt.Net-Next.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.IdentityModel.Abstractions.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.IdentityModel.JsonWebTokens.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.IdentityModel.Logging.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\Microsoft.IdentityModel.Tokens.dll
+E:\ai-code-review\CodeReview.API\bin\Debug\net8.0\System.IdentityModel.Tokens.Jwt.dll

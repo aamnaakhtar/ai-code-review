@@ -4,11 +4,14 @@ using CodeReview.API.Data;
 using CodeReview.API.DTOs;
 using CodeReview.API.Models.Entities;
 using CodeReview.API.Services;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace CodeReview.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ReviewController : ControllerBase
 {
     private readonly ReviewQueue _queue;
@@ -43,24 +46,27 @@ public class ReviewController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Code))
             return BadRequest("Code cannot be empty.");
 
-        // Create the job record in DB
+        // Extract userId from the JWT claims
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userId = userIdClaim != null ? Guid.Parse(userIdClaim) : null;
+
         var job = new ReviewJob
         {
             Code = request.Code,
             Language = request.Language,
-            Status = "pending"
+            Status = "pending",
+            UserId = userId  // now linked to real user
         };
 
         _db.ReviewJobs.Add(job);
         await _db.SaveChangesAsync();
 
-        // Enqueue for background processing
         await _queue.Writer.WriteAsync(job);
 
         _logger.LogInformation(
-            "Job {JobId} queued for {Language}", job.Id, job.Language);
+            "Job {JobId} queued for {Language} by user {UserId}",
+            job.Id, job.Language, userId);
 
-        // Return immediately — don't wait for LLM
         return Ok(new SubmitReviewResponseDto
         {
             JobId = job.Id.ToString(),
@@ -131,9 +137,18 @@ public class ReviewController : ControllerBase
     [HttpGet("history")]
     public async Task<ActionResult<List<ReviewHistoryDto>>> GetHistory()
     {
-        var jobs = await _db.ReviewJobs
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        Guid? userId = userIdClaim != null ? Guid.Parse(userIdClaim) : null;
+
+        var query = _db.ReviewJobs
             .Include(j => j.Result)
-            .Where(j => j.Status == "done" && j.Result != null)
+            .Where(j => j.Status == "done" && j.Result != null);
+
+        // Filter by user if authenticated
+        if (userId.HasValue)
+            query = query.Where(j => j.UserId == userId);
+
+        var jobs = await query
             .OrderByDescending(j => j.CreatedAt)
             .Take(10)
             .Select(j => new ReviewHistoryDto
@@ -144,7 +159,6 @@ public class ReviewController : ControllerBase
                 CreatedAt = j.CreatedAt.ToString("o"),
                 Summary = j.Result!.Summary,
                 TotalIssues = j.Result!.TotalIssues,
-                // Show first 60 chars of code as preview
                 CodePreview = j.Code.Length > 60
                     ? j.Code.Substring(0, 60) + "..."
                     : j.Code

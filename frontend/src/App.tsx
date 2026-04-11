@@ -2,19 +2,16 @@ import { useState } from "react";
 import CodeEditor from "./components/CodeEditor";
 import ReviewPanel from "./components/ReviewPanel";
 import LanguageSelector from "./components/LanguageSelector";
-import HistoryPanel from "./components/Historypanel";
+import HistoryPanel from "./components/HistoryPanel";
+import AuthForm from "./components/AuthForm";
 import { useCodeReview } from "./hooks/useCodeReview";
+import { useAuth } from "./context/AuthContext";
 import { type Language } from "./types/review";
 
-const PLACEHOLDER = `function getUser(id) {
-  let user = null;
-  console.log(user.name);
-  for (let i = 0; i <= users.length; i++) {
-    db.query("SELECT * FROM users WHERE id = " + users[i]);
-  }
-}`;
+const PLACEHOLDER = "// Paste your code here\n";
 
 export default function App() {
+  const { user, logout } = useAuth();
   const [code, setCode] = useState(PLACEHOLDER);
   const [language, setLanguage] = useState<Language>("javascript");
   const [sidebarTab, setSidebarTab] = useState<"results" | "history">(
@@ -33,6 +30,9 @@ export default function App() {
     handleSelectHistory,
   } = useCodeReview();
 
+  // Show login/register screen if not authenticated
+  if (!user) return <AuthForm />;
+
   return (
     <div className="h-screen bg-gray-950 text-white flex flex-col">
       {/* Header */}
@@ -50,6 +50,13 @@ export default function App() {
               Rate limited — wait {rateLimitSeconds}s
             </span>
           )}
+          <span className="text-xs text-gray-500">{user.username}</span>
+          <button
+            onClick={logout}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Sign out
+          </button>
           <button
             onClick={() => handleReview(code, language)}
             disabled={isLoading || !code.trim() || rateLimitSeconds > 0}
