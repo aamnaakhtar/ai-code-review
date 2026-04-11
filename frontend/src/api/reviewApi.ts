@@ -1,5 +1,6 @@
 import axios from "axios";
 import { type ReviewResult } from "../types/review";
+import { type ReviewHistory } from "../types/review";
 
 const API_BASE = "http://localhost:5249";
 
@@ -18,6 +19,16 @@ export async function submitReview(
 export async function getReviewResult(
   jobId: string
 ): Promise<ReviewResult> {
+  const response = await axios.get(`${API_BASE}/api/review/${jobId}`);
+  return response.data;
+}
+
+export async function getReviewHistory(): Promise<ReviewHistory[]> {
+  const response = await axios.get(`${API_BASE}/api/review/history`);
+  return response.data;
+}
+
+export async function getReviewById(jobId: string): Promise<ReviewResult> {
   const response = await axios.get(`${API_BASE}/api/review/${jobId}`);
   return response.data;
 }

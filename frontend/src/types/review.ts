@@ -27,3 +27,13 @@ export interface ReviewResult {
   summary: string;
   reviewedAt: string;
 }
+
+export interface ReviewHistory {
+  jobId: string;
+  language: string;
+  status: string;
+  createdAt: string;
+  summary: string;
+  totalIssues: number;
+  codePreview: string;
+}

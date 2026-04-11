@@ -126,4 +126,31 @@ public class ReviewController : ControllerBase
 
     [HttpGet("health")]
     public IActionResult Health() => Ok(new { status = "healthy" });
+
+    // GET api/review/history — fetch recent reviews for display
+    [HttpGet("history")]
+    public async Task<ActionResult<List<ReviewHistoryDto>>> GetHistory()
+    {
+        var jobs = await _db.ReviewJobs
+            .Include(j => j.Result)
+            .Where(j => j.Status == "done" && j.Result != null)
+            .OrderByDescending(j => j.CreatedAt)
+            .Take(10)
+            .Select(j => new ReviewHistoryDto
+            {
+                JobId = j.Id.ToString(),
+                Language = j.Language,
+                Status = j.Status,
+                CreatedAt = j.CreatedAt.ToString("o"),
+                Summary = j.Result!.Summary,
+                TotalIssues = j.Result!.TotalIssues,
+                // Show first 60 chars of code as preview
+                CodePreview = j.Code.Length > 60
+                    ? j.Code.Substring(0, 60) + "..."
+                    : j.Code
+            })
+            .ToListAsync();
+
+        return Ok(jobs);
+    }
 }
