@@ -4,10 +4,11 @@ EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["CodeReview.API.csproj", "."]
-RUN dotnet restore
+COPY ["CodeReview.API/CodeReview.API.csproj", "CodeReview.API/"]
+RUN dotnet restore "CodeReview.API/CodeReview.API.csproj"
 COPY . .
-RUN dotnet publish -c Release -o /app/publish
+WORKDIR "/src/CodeReview.API"
+RUN dotnet publish "CodeReview.API.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
