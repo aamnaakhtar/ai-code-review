@@ -51,7 +51,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
             "http://localhost:5173",
-            "https://ai-code-review-swart.vercel.app/"  // replace with your actual Vercel URL
+            "https://ai-code-review-swart.vercel.app"  // replace with your actual Vercel URL
         )
               .AllowAnyHeader()
               .AllowAnyMethod();
