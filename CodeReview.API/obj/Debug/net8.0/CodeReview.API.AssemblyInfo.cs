@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CodeReview.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3519606441310331331a6b196054ec3fe9449d77")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+668e9557483f65532547c01f92f81189fc2abada")]
 [assembly: System.Reflection.AssemblyProductAttribute("CodeReview.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CodeReview.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
