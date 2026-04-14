@@ -2,7 +2,7 @@ import axios from "axios";
 import { type ReviewResult } from "../types/review";
 import { type ReviewHistory } from "../types/review";
 
-const API_BASE = "http://localhost:5249";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5249";
 
 export async function submitReview(
   code: string,

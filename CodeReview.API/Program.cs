@@ -49,7 +49,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+            "http://localhost:5173",
+            "https://ai-code-review.vercel.app"  // replace with your actual Vercel URL
+        )
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
